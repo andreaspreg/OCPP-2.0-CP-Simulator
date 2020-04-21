@@ -1,91 +1,27 @@
 <html>
 	<head>
-	<title>ChargePoint Simulator</title>
-		<style>
-			body {
-				background: #000;
-				color: white;
-			}
-			
-			button,
-			input,
-			select {
-				display: block;
-				width: 100%;
-				margin-bottom: 5px;
-				cursor: pointer;
-			}
-			
-			button {
-				background: #369;
-				color: #fff;
-				padding: 5px 0;
-				border: none;
-			}
-			
-			ul {
-				background: #000;
-				color: #eee;
-			}
-			
-			li {}
-			
-			#red,
-			#green,
-			#blue {
-				min-width: 10px;
-			}
-			
-			#red {
-				background-color: red;
-			}
-			
-			#green {
-				background-color: green;
-			}
-			
-			#blue {
-				background-color: blue;
-			}
-			
-			#yellow {
-				background-color: yellow;
-			}
-			
-			table,
-			th,
-			tr,
-			td {
-				border: 1px solid white;
-			}
-			
-			table {
-				margin: auto;
-			}
-			
-			form {
-				padding-top: 20px;
-			}
-			
-			.center {
-				text-align: center;
-			}
-		</style>
+		<title>ChargePoint Simulator</title>
+		<script type="text/javascript" src="assets/js/queryparam.js"></script>
+		<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+		<link rel="stylesheet" type="text/css" href="assets/css/main.css">
 	</head>
-	<body>
-		<select>
-			<option value="">
-				OCPP-J2.0
-			</option>
-		</select>
-		<input id="CP" type="text" placeholder="ChargePoint ID" value="ws://127.0.0.1:8080/websocket/CentralSystemService/ChargePointID" />
+	<body onload="useQueryParams()">
+		<input id="CP" type="text" placeholder="WS URL + ChargePoint ID" value="" />
 		<button id="connect">Connect</button>
+		<span>Id Token (from RFID card)</span><input id="idToken" type="text" value="dummytag" />
 		<button id="send">Authorize</button>
-		<button id="start">Start Transaction - EVDetected</button>
+
+		<span>Meter Start</span><input id="meterStart" type="text" value="0" />
+		<button id="startCablePluggedIn">Start Transaction - CablePluggedIn</button>
+
+
+		<span>Meter Stop</span><input id="meterUpdated" type="text" value="250" />
 		<button id="update">Update Transaction - EVDetected</button>
 		<button id="update_suspendedevse">Update Transaction - SuspendedEVSE</button>
 		<button id="update_suspendedev">Update Transaction - SuspendedEV</button>
 		<button id="update_charging">Update Transaction - Charging</button>
+
+		<span>Meter Stop</span><input id="meterStop" type="text" value="2300" />
 		<button id="stop">Stop Transaction</button>
 		<button id="heartbeat">Heartbeat</button>
 		<button id="mv">Meter Values</button>
@@ -98,6 +34,9 @@
 		<button id="notify_charging_limit">Notify Charging Limit - 10 A</button>
 		<button id="notify_ev_charging_schedule">Notify EV Charging Schedule - 10 A</button>
 
+		<span>EVSE ID</span><input id="evseId" type="text" value="1" />
+		<span>Connector ID</span><input id="connectorId" type="text" value="1" />
+		<span>Meter Value Unit</span><input id="meterValueUnit" type="text" value="Wh" />
 
 		<div>
 			<span class="indicator" id="red">____</span>
@@ -106,7 +45,6 @@
 			<span class="indicator" id="yellow">____</span>
 		</div>
 		<ul id="console"></ul>
-		<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
 		<script>
 			$('.indicator').hide();
 			$('#red').show();
@@ -171,14 +109,13 @@
 
 			function wsConnect() {
 
-				var wsurl = $('select').val();
 				var CP = $('#CP').val();
 
 				if (_websocket) {
 					$('#red').show();
 					_websocket.close(3001);
 				} else {
-					_websocket = new WebSocket(wsurl + "" + CP, ["ocpp2.0", "ocpp1.5"]);
+					_websocket = new WebSocket(CP, ["ocpp2.0", "ocpp1.5"]);
 					_websocket.onopen = function(authorizationData) {
 
 						sessionStorage.setItem('LastAction', "BootNotification");
@@ -586,10 +523,9 @@
 				sessionStorage.setItem('LastAction', "Authorize");
 				var Auth = JSON.stringify([2, id, "Authorize", {
 					"idToken": {
-						"idToken": "TAG1",
-						"type": "Central"
-					},
-					"evseId": [1,2,3,4] //Just to test
+						"idToken": $('#idToken').val(),
+						"type": "ISO15693"
+					}
 				}]);
 				_websocket.send(Auth);
 
@@ -606,7 +542,7 @@
 
 			}
 
-			function startTransaction(charge_state = "EVDetected") {
+			function startTransaction(chargeState = "EVDetected", triggerReason = "CablePluggedIn") {
 				sessionStorage.setItem('LastAction', "startTransaction");
 				$('.indicator').hide();
 				$('#green').show();
@@ -616,63 +552,58 @@
 				var strtT = JSON.stringify([2, id, "TransactionEvent", {
 					"eventType": "Started",
 					"timestamp": formatDate(new Date()),
-					"triggerReason": "Authorized",
+					"triggerReason": triggerReason,
 					"seqNo": 0,
 					"idToken": {
-						"idToken": "TAG1",
-						"type": "Central"
+						"idToken": $('#idToken').val(),
+						"type": "ISO15693"
 					},
 					"evse": {
-						"id": 2,
-						"connectorId": 2
+						"id": Number.parseInt($('#evseId').val()),
+						"connectorId": Number.parseInt($('#connectorId').val())
 					},
 					"transactionData": {
 						"id": lastTranId,
-						"remoteStartId": 0,
-						"chargingState": charge_state
+						"chargingState": chargeState
 					},
 					"meterValue": [{
 						"timestamp": formatDate(new Date()),
 						"sampledValue": [{
-							"value": 0
+							"value": Number.parseInt($('#meterStart').val()),
+							"unitOfMeasure": {
+								"unit": $('#meterValueUnit').val()
+							}
 						}]
 					}]
 				}]);
 				_websocket.send(strtT);
 			}
 
-			function updateTransaction(charger_state = "EVDetected") {
+			function updateTransaction(chargeState = "Charging", triggerReason="MeterValuePeriodic") {
 				sessionStorage.setItem('LastAction', "updateTransaction");
 				var updTrns = JSON.stringify([2, id, "TransactionEvent", {
 					"eventType": "Updated",
 					"timestamp": formatDate(new Date()),
-					"triggerReason": "MeterValuePeriodic",
+					"triggerReason": triggerReason,
 					"seqNo": 0,
 					"idToken": {
-						"idToken": "TAG1",
-						"type": "Central"
+						"idToken": $('#idToken').val(),
+						"type": "ISO15693"
 					},
 					"evse": {
-						"id": 2,
-						"connectorId": 2
+						"id": Number.parseInt($('#evseId').val()),
+						"connectorId": Number.parseInt($('#connectorId').val())
 					},
 					"transactionData": {
 						"id": lastTranId,
-						"remoteStartId": 0,
-						"chargingState": charger_state
+						"chargingState": chargeState
 					},
 					"meterValue": [{
 						"timestamp": formatDate(new Date()),
 						"sampledValue": [{
-							"value": 10
-						}, {
-							"value": 15,
-							"context": "Sample.Periodic",
-							"measurand": "Energy.Reactive.Export.Register",
-							"phase": "L1",
-							"location": "EV",
+							"value": Number.parseInt($('#meterUpdated').val()),
 							"unitOfMeasure": {
-								"unit": "5"
+								"unit": $('#meterValueUnit').val()
 							}
 						}]
 					}]
@@ -680,7 +611,7 @@
 				_websocket.send(updTrns);
 			}
 
-			function stopTransaction(transaction_id = false) {
+			function stopTransaction(transaction_id = false, triggerReason="Deauthorized") {
 				sessionStorage.setItem('LastAction', "stopTransaction");
 				transaction_id == false ? lastTranId = lastTranId : lastTranId = transaction_id;
 				$('.indicator').hide();
@@ -690,24 +621,26 @@
 				var stpT = JSON.stringify([2, id, "TransactionEvent", {
 					"eventType": "Ended",
 					"timestamp": formatDate(new Date()),
-					"triggerReason": "Deauthorized",
+					"triggerReason": triggerReason,
 					"seqNo": 0,
 					"idToken": {
-						"idToken": "TAG1",
-						"type": "Central"
+						"idToken": $('#idToken').val(),
+						"type": "ISO15693"
 					},
 					"evse": {
-						"id": 2,
-						"connectorId": 2
+						"id": Number.parseInt($('#evseId').val()),
+						"connectorId": Number.parseInt($('#connectorId').val())
 					},
 					"transactionData": {
-						"id": lastTranId,
-						"remoteStartId": 0
+						"id": lastTranId
 					},
 					"meterValue": [{
 						"timestamp": formatDate(new Date()),
 						"sampledValue": [{
-							"value": 20
+							"value": Number.parseInt($('#meterStop').val()),
+							"unitOfMeasure": {
+								"unit": $('#meterValueUnit').val()
+							}
 						}]
 					}]
 				}]);
@@ -858,9 +791,8 @@
 
 			});
 
-			$('#start').click(function() {
+			$('#startCablePluggedIn').click(function() {
 				startTransaction();
-
 			});
 
 			$('#update').click(function() {

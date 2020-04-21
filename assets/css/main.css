@@ -1,0 +1,68 @@
+body {
+  background: #000;
+  color: white;
+}
+
+button,
+input,
+select {
+  display: block;
+  width: 100%;
+  margin-bottom: 5px;
+  cursor: pointer;
+}
+
+button {
+  background: #369;
+  color: #fff;
+  padding: 5px 0;
+  border: none;
+}
+
+ul {
+  background: #000;
+  color: #eee;
+}
+
+li {}
+
+#red,
+#green,
+#blue {
+  min-width: 10px;
+}
+
+#red {
+  background-color: red;
+}
+
+#green {
+  background-color: green;
+}
+
+#blue {
+  background-color: blue;
+}
+
+#yellow {
+  background-color: yellow;
+}
+
+table,
+th,
+tr,
+td {
+  border: 1px solid white;
+}
+
+table {
+  margin: auto;
+}
+
+form {
+  padding-top: 20px;
+}
+
+.center {
+  text-align: center;
+}

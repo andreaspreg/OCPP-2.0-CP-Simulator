@@ -8,7 +8,21 @@
 	<body onload="useQueryParams()">
 		<input id="CP" type="text" placeholder="WS URL + ChargePoint ID" value="" />
 		<button id="connect">Connect</button>
-		<span>Id Token (from RFID card)</span><input id="idToken" type="text" value="dummytag" />
+
+	  <span>Status Notification</span>
+		<select id="statusNotificationStatus">
+			<option value="Available">Available</option>
+			<option value="Occupied">Occupied</option>
+			<option value="Reserved">Reserved</option>
+			<option value="Unavailable">Unavailable</option>
+			<option value="Faulted">Faulted</option>
+		</select>
+		<button id="status">Status Notification</button>
+
+		<button id="heartbeat">Heartbeat</button>
+
+		<span>Id Token (from RFID card)</span>
+		<input id="idToken" type="text" value="dummytag" />
 		<button id="send">Authorize</button>
 
 		<span>Meter Start</span><input id="meterStart" type="text" value="0" />
@@ -23,16 +37,17 @@
 
 		<span>Meter Stop</span><input id="meterStop" type="text" value="2300" />
 		<button id="stop">Stop Transaction</button>
-		<button id="heartbeat">Heartbeat</button>
-		<button id="mv">Meter Values</button>
-		<button id="status">Status Notification</button>
+
+<!--
 		<button id="data_transfer">Data Tranfer</button>
+		<button id="mv">Meter Values</button>
 		<button id="firmwarestatus">Firmware Status Notification</button>
 		<button id="clearedChargingLimit">Cleared Charging Limit</button>
 		<button id="logstatus_uploading">LogStatus Notification - Uploading</button>
 		<button id="logstatus_uploaded">LogStatus Notification - Uploaded</button>
 		<button id="notify_charging_limit">Notify Charging Limit - 10 A</button>
 		<button id="notify_ev_charging_schedule">Notify EV Charging Schedule - 10 A</button>
+-->
 
 		<span>EVSE ID</span><input id="evseId" type="text" value="1" />
 		<span>Connector ID</span><input id="connectorId" type="text" value="1" />
@@ -695,9 +710,9 @@
 				sessionStorage.setItem('LastAction', "StatusNotification");
 				var SN = JSON.stringify([2, id, "StatusNotification", {
 					"timestamp": formatDate(new Date()),
-					"connectorStatus": "Available",
-					"evseId": 2,
-					"connectorId": 2
+					"connectorStatus": $('#statusNotificationStatus').val(),
+					"evseId": Number.parseInt($('#evseId').val()),
+					"connectorId": Number.parseInt($('#connectorId').val())
 				}]);
 				_websocket.send(SN);
 			}

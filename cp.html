@@ -23,17 +23,22 @@
 
 		<span>Id Token (from RFID card)</span>
 		<input id="idToken" type="text" value="dummytag" />
-		<button id="send">Authorize</button>
+		<button id="authorize">Authorize</button>
 
 		<span>Meter Start</span><input id="meterStart" type="text" value="0" />
 		<button id="startCablePluggedIn">Start Transaction - CablePluggedIn</button>
+		<button id="startAuthorized">Start Transaction - Authorized</button>
 
 
-		<span>Meter Stop</span><input id="meterUpdated" type="text" value="250" />
-		<button id="update">Update Transaction - EVDetected</button>
-		<button id="update_suspendedevse">Update Transaction - SuspendedEVSE</button>
-		<button id="update_suspendedev">Update Transaction - SuspendedEV</button>
-		<button id="update_charging">Update Transaction - Charging</button>
+		<span>Meter Updated</span><input id="meterUpdated" type="text" value="250" />
+		<button id="updateCablePluggedIn">Update Transaction - CablePluggedIn</button>
+		<select id="chargingState">
+			<option value="Charging">Charging</option>
+			<option value="EVDetected">EVDetected</option>
+			<option value="SuspendedEV">SuspendedEV</option>
+			<option value="SuspendedEVSE">SuspendedEVSE</option>
+		</select>
+		<button id="updateChargingStateChanged">Update Transaction - ChargingStateChanged</button>
 
 		<span>Meter Stop</span><input id="meterStop" type="text" value="2300" />
 		<button id="stop">Stop Transaction</button>
@@ -557,72 +562,79 @@
 
 			}
 
-			function startTransaction(chargeState = "EVDetected", triggerReason = "CablePluggedIn") {
+			function getEvseObject() {
+				return {
+					"id": Number.parseInt($('#evseId').val()),
+					"connectorId": Number.parseInt($('#connectorId').val())
+				};
+			}
+
+			function getMeterValueSampleObject(value) {
+				return [{
+					"timestamp": formatDate(new Date()),
+					"sampledValue": [{
+						"value": value,
+						"unitOfMeasure": {
+							"unit": $('#meterValueUnit').val()
+						}
+					}]
+				}];
+			}
+
+			function getIdTokenObject() {
+				return {
+					"idToken": $('#idToken').val(),
+					"type": "ISO15693"
+				};
+			}
+
+			function startTransaction(chargingState = "EVDetected", triggerReason = "CablePluggedIn") {
 				sessionStorage.setItem('LastAction', "startTransaction");
 				$('.indicator').hide();
 				$('#green').show();
 				connector_locked = true;
 				logMsg("Connector status changed to: " + connector_locked);
 				lastTranId = guid();
-				var strtT = JSON.stringify([2, id, "TransactionEvent", {
+				var json = {
 					"eventType": "Started",
 					"timestamp": formatDate(new Date()),
 					"triggerReason": triggerReason,
 					"seqNo": 0,
-					"idToken": {
-						"idToken": $('#idToken').val(),
-						"type": "ISO15693"
-					},
-					"evse": {
-						"id": Number.parseInt($('#evseId').val()),
-						"connectorId": Number.parseInt($('#connectorId').val())
-					},
 					"transactionData": {
 						"id": lastTranId,
-						"chargingState": chargeState
-					},
-					"meterValue": [{
-						"timestamp": formatDate(new Date()),
-						"sampledValue": [{
-							"value": Number.parseInt($('#meterStart').val()),
-							"unitOfMeasure": {
-								"unit": $('#meterValueUnit').val()
-							}
-						}]
-					}]
-				}]);
+						"chargingState": chargingState
+					}
+				};
+				json.evse = getEvseObject();
+				json.meterValue = getMeterValueSampleObject(Number.parseInt($('#meterStart').val()));
+
+				if(triggerReason != "CablePluggedIn") {
+					// No IdToken available when cable is plugged in first
+					json.idToken = getIdTokenObject();
+				}
+
+				var strtT = JSON.stringify([2, id, "TransactionEvent", json]);
 				_websocket.send(strtT);
 			}
 
-			function updateTransaction(chargeState = "Charging", triggerReason="MeterValuePeriodic") {
+			function updateTransaction(chargingState = "Charging", triggerReason="MeterValuePeriodic") {
 				sessionStorage.setItem('LastAction', "updateTransaction");
-				var updTrns = JSON.stringify([2, id, "TransactionEvent", {
+				var json = {
 					"eventType": "Updated",
 					"timestamp": formatDate(new Date()),
 					"triggerReason": triggerReason,
 					"seqNo": 0,
-					"idToken": {
-						"idToken": $('#idToken').val(),
-						"type": "ISO15693"
-					},
-					"evse": {
-						"id": Number.parseInt($('#evseId').val()),
-						"connectorId": Number.parseInt($('#connectorId').val())
-					},
 					"transactionData": {
 						"id": lastTranId,
-						"chargingState": chargeState
-					},
-					"meterValue": [{
-						"timestamp": formatDate(new Date()),
-						"sampledValue": [{
-							"value": Number.parseInt($('#meterUpdated').val()),
-							"unitOfMeasure": {
-								"unit": $('#meterValueUnit').val()
-							}
-						}]
-					}]
-				}]);
+						"chargingState": chargingState
+					}
+				};
+
+				json.evse = getEvseObject();
+				json.meterValue = getMeterValueSampleObject(Number.parseInt($('#meterUpdated').val()));
+				json.idToken = getIdTokenObject();
+
+				var updTrns = JSON.stringify([2, id, "TransactionEvent", json]);
 				_websocket.send(updTrns);
 			}
 
@@ -633,32 +645,21 @@
 				connector_locked = false;
 				logMsg("Connector status changed to: " + connector_locked);
 				$('#yellow').show();
-				var stpT = JSON.stringify([2, id, "TransactionEvent", {
+				var json = {
 					"eventType": "Ended",
 					"timestamp": formatDate(new Date()),
 					"triggerReason": triggerReason,
 					"seqNo": 0,
-					"idToken": {
-						"idToken": $('#idToken').val(),
-						"type": "ISO15693"
-					},
-					"evse": {
-						"id": Number.parseInt($('#evseId').val()),
-						"connectorId": Number.parseInt($('#connectorId').val())
-					},
 					"transactionData": {
 						"id": lastTranId
-					},
-					"meterValue": [{
-						"timestamp": formatDate(new Date()),
-						"sampledValue": [{
-							"value": Number.parseInt($('#meterStop').val()),
-							"unitOfMeasure": {
-								"unit": $('#meterValueUnit').val()
-							}
-						}]
-					}]
-				}]);
+					}
+				};
+
+				json.evse = getEvseObject();
+				json.meterValue = getMeterValueSampleObject(Number.parseInt($('#meterStop').val()));
+				json.idToken = getIdTokenObject();
+
+				var stpT = JSON.stringify([2, id, "TransactionEvent", json]);
 				_websocket.send(stpT);
 			}
 
@@ -801,30 +802,29 @@
 				wsConnect();
 			});
 
-			$('#send').click(function() {
+			$('#authorize').click(function() {
 				Authorize();
-
 			});
 
 			$('#startCablePluggedIn').click(function() {
-				startTransaction();
+				startTransaction(chargeState="EVDetected", triggerReason="CablePluggedIn");
 			});
 
-			$('#update').click(function() {
-				updateTransaction();
+			$('#startAuthorized').click(function() {
+				// This is OCPP 2.0.0, In OCPP 2.0.1 "Idle" would be the correct value
+				startTransaction(chargeState="EVDetected", triggerReason="Authorized");
 			});
 
-			$('#update_suspendedev').click(function() {
-				updateTransaction(charger_state = "SuspendedEV");
+			$('#updateCablePluggedIn').click(function() {
+				state = $('#chargingState').val();
+				updateTransaction(hargingState = state, triggerReason="CablePluggedIn");
 			});
 
-			$('#update_suspendedevse').click(function() {
-				updateTransaction(charger_state = "SuspendedEVSE");
+			$('#updateChargingStateChanged').click(function() {
+				state = $('#chargingState').val();
+				updateTransaction(chargingState = state);
 			});
 
-			$('#update_charging').click(function() {
-				updateTransaction(charger_state = "Charging");
-			});
 			$('#stop').click(function() {
 				stopTransaction();
 			});

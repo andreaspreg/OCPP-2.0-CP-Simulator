@@ -26,8 +26,8 @@
 		<button id="authorize">Authorize</button>
 
 		<span>Meter Start</span><input id="meterStart" type="text" value="0" />
-		<button id="startCablePluggedIn">Start Transaction - CablePluggedIn</button>
 		<button id="startAuthorized">Start Transaction - Authorized</button>
+		<button id="startCablePluggedIn">Start Transaction - CablePluggedIn</button>
 
 
 		<span>Meter Updated</span><input id="meterUpdated" type="text" value="250" />
@@ -41,7 +41,7 @@
 		<button id="updateChargingStateChanged">Update Transaction - ChargingStateChanged</button>
 
 		<span>Meter Stop</span><input id="meterStop" type="text" value="2300" />
-		<button id="stop">Stop Transaction</button>
+		<button id="stopEVCommunicationLost">Stop Transaction - EVCommunicationLost</button>
 
 <!--
 		<button id="data_transfer">Data Tranfer</button>
@@ -581,11 +581,28 @@
 				}];
 			}
 
+			function getIdToken() {
+				return $('#idToken').val();
+			}
+
 			function getIdTokenObject() {
-				return {
-					"idToken": $('#idToken').val(),
-					"type": "ISO15693"
-				};
+				var idTokenObject;
+				var tag = getIdToken();
+
+				if(tag) {
+					idTokenObject = {
+						"idToken": tag,
+						"type": "ISO15693"
+					};
+				}
+				else {
+					idTokenObject = {
+						"idToken": "",
+						"type": "NoAuthorization"
+					};
+				}
+
+				return idTokenObject;
 			}
 
 			function startTransaction(chargingState = "EVDetected", triggerReason = "CablePluggedIn") {
@@ -608,7 +625,7 @@
 				json.evse = getEvseObject();
 				json.meterValue = getMeterValueSampleObject(Number.parseInt($('#meterStart').val()));
 
-				if(triggerReason != "CablePluggedIn") {
+				if(triggerReason != "CablePluggedIn" || !getIdToken()) {
 					// No IdToken available when cable is plugged in first
 					json.idToken = getIdTokenObject();
 				}
@@ -638,7 +655,7 @@
 				_websocket.send(updTrns);
 			}
 
-			function stopTransaction(transaction_id = false, triggerReason="Deauthorized") {
+			function stopTransaction(transaction_id = false, triggerReason="EVCommunicationLost") {
 				sessionStorage.setItem('LastAction', "stopTransaction");
 				transaction_id == false ? lastTranId = lastTranId : lastTranId = transaction_id;
 				$('.indicator').hide();
@@ -651,7 +668,8 @@
 					"triggerReason": triggerReason,
 					"seqNo": 0,
 					"transactionData": {
-						"id": lastTranId
+						"id": lastTranId,
+						"stoppedReason":"EVDisconnected"
 					}
 				};
 
@@ -825,7 +843,7 @@
 				updateTransaction(chargingState = state);
 			});
 
-			$('#stop').click(function() {
+			$('#stopEVCommunicationLost').click(function() {
 				stopTransaction();
 			});
 

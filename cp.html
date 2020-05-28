@@ -58,6 +58,7 @@
 		<span>EVSE ID</span><input id="evseId" type="text" value="1" />
 		<span>Connector ID</span><input id="connectorId" type="text" value="1" />
 		<span>Meter Value Unit</span><input id="meterValueUnit" type="text" value="Wh" />
+		<span>Firmware Version</span><input id="firmwareVersion" type="text" value="0.9.87" />
 
 		<div>
 			<span class="indicator" id="red">____</span>
@@ -774,7 +775,7 @@
 		                "imsi": "520031234567890"
 		            },
 		            "vendorName": "AVT-Company",
-		            "firmwareVersion": "0.9.87"
+		            "firmwareVersion": $('#firmwareVersion').val()
 		        },
 		        "reason": "PowerUp"
 		    }]);

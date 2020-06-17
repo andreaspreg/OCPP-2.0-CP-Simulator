@@ -983,34 +983,7 @@
 
 		function formatDate(date) {
 
-				var day = String(date.getDate());
-				if (day.length < 2) {
-						day = ('0' + day.slice(-2));
-				}
-
-				var monthIndex = String(date.getMonth() + 1);
-				if (monthIndex.length < 2) {
-						monthIndex = ('0' + monthIndex.slice(-2));
-				}
-				var year = date.getFullYear();
-				var h = date.getHours();
-				if (h < 3) {
-						h = 24 - h;
-				}
-				h = String(h - 1);
-				if (h.length < 2) {
-						h = ('0' + h.slice(-2));
-				}
-				var m = String(date.getMinutes());
-
-				var s = String(date.getSeconds());
-				if (m.length < 2) {
-						m = ('0' + m.slice(-2));
-				}
-				if (s.length < 2) {
-						s = ('0' + s.slice(-2));
-				}
-				return year + '-' + monthIndex + '-' + day + "T" + h + ":" + m + ":" + s + "Z";
+			return date.toISOString();
 		}
 
 		</script>

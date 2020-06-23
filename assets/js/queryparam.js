@@ -13,8 +13,8 @@ function querySt(ji) {
 
 function useQueryParams() {
   var endpointUrl = querySt("endpoint-url");
-  document.getElementById('CP').value = endpointUrl ? endpointUrl : "";
+  document.getElementById('endpointURL').value = endpointUrl ? endpointUrl : "";
 
   var chargePointId = querySt("chargepoint-id");
-  document.getElementById('CP').value += chargePointId ? chargePointId : "";
+  document.getElementById('chargePointId').value = chargePointId ? chargePointId : "";
 }

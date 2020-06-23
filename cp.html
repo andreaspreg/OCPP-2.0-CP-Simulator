@@ -6,7 +6,6 @@
 		<link rel="stylesheet" type="text/css" href="assets/css/main.css">
 	</head>
 	<body onload="useQueryParams()">
-		<input id="CP" type="text" placeholder="WS URL + ChargePoint ID" value="" />
 		<button id="connect">Connect</button>
 
 	  <span>Status Notification</span>
@@ -55,6 +54,8 @@
 		<button id="notify_ev_charging_schedule">Notify EV Charging Schedule - 10 A</button>
 -->
 
+		<span>Endpoint URL</span><input id="endpointURL" type="text" value="" />
+		<span>ID Chargepoint</span><input id="chargePointId" type="text" value="" />
 		<span>EVSE ID</span><input id="evseId" type="text" value="1" />
 		<span>Connector ID</span><input id="connectorId" type="text" value="1" />
 		<span>Meter Value Unit</span><input id="meterValueUnit" type="text" value="Wh" />
@@ -99,13 +100,14 @@
 
 		function wsConnect() {
 
-		    var CP = $('#CP').val();
+		    var endpointURL = $('#endpointURL').val();
+				var chargePointId = $('#chargePointId').val();
 
 		    if (_websocket) {
 		        $('#red').show();
 		        _websocket.close(3001);
 		    } else {
-		        _websocket = new WebSocket(CP, ["ocpp2.0", "ocpp1.5"]);
+		        _websocket = new WebSocket(endpointURL+""+chargePointId, ["ocpp2.0", "ocpp1.5"]);
 		        _websocket.onopen = function(authorizationData) {
 
 		            sessionStorage.setItem('LastAction', "BootNotification");

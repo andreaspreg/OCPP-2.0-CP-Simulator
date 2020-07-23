@@ -584,8 +584,11 @@
 		    var meterValueSampleObject =  [];
 
 				if(startValue != null) {
+					// if stopValue present, the startDate should be in the past (-1min)
+					var startDate = stopValue==null ? new Date() : new Date(new Date().valueOf() - 60000);
+					
 					meterValueSampleObject.push({
-			        "timestamp": formatDate(new Date()),
+			        "timestamp": formatDate(startDate),
 			        "sampledValue": [{
 			            "value": startValue,
 									"context": "Transaction.Begin",

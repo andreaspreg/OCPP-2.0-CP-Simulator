@@ -22,16 +22,22 @@
 
     <span>Authorization Enabled</span>
 		<input type="checkbox" name="checkboxAuthEnabled" id="checkboxAuthEnabled" onchange="onAuthenabledChange();">
-		<!-- Not get supported <span>Id Token (from RFID card)</span>
+
+		<span>Id Token (only if authorization is enabled)</span>
 		<input id="idToken" type="text" value="" />
-		<button id="authorize">Authorize</button>-->
+		<button id="authorize">Authorize</button>
 
 		<span>Meter Start</span><input id="meterStart" type="text" value="0" />
-		<button id="startCablePluggedIn">Start Transaction - CablePluggedIn</button>
-		<!-- Not yet supported <button id="startAuthorized">Start Transaction - Authorized</button>-->
 
+		<span>Cable First, Auth second (also used when authorization is disabled)</span>
+		<button id="startCablePluggedIn">Start Transaction - CablePluggedIn</button>
 		<button id="updateAuthorized">Update Transaction - Authorized</button>
-		<!-- Not yet supported <button id="updateCablePluggedIn">Update Transaction - CablePluggedIn</button>-->
+
+		<span>Auth first, Cable second</span>
+		<button id="startAuthorized">Start Transaction - Authorized</button>
+		<button id="updateCablePluggedIn">Update Transaction - CablePluggedIn</button>
+
+		<span>Transaction Updates</span>
 		<select id="chargingState">
 			<option value="Charging">Charging</option>
 			<option value="EVDetected">EVDetected</option>
@@ -40,6 +46,11 @@
 		</select>
 		<button id="updateChargingStateChanged">Update Transaction - ChargingStateChanged</button>
 
+		<span>Meter Update</span><input id="meterUpdate" type="text" value="600" />
+		<button id="updateMeterValuePeriodic">Update Transaction - MeterValuePeriodic</button>
+
+    <span>End Transaction (StopAuthorized only if authorization is enabled)<span>
+		<button id="updateStopAuthorized">Update Transaction - StopAuthorized</button>
 		<span>Meter Stop</span><input id="meterStop" type="text" value="2300" />
 		<button id="stopEVCommunicationLost">Stop Transaction - EVCommunicationLost</button>
 
@@ -58,8 +69,10 @@
 		<span>ID Chargepoint</span><input id="chargePointId" type="text" value="" />
 		<span>EVSE ID</span><input id="evseId" type="text" value="1" />
 		<span>Connector ID</span><input id="connectorId" type="text" value="1" />
-		<span>Meter Value Unit</span><input id="meterValueUnit" type="text" value="Wh" />
+		<span>Transaction ID</span><input id="transactionId" type="text" value="" />
 		<span>Firmware Version</span><input id="firmwareVersion" type="text" value="0.9.87" />
+		<span>Meter Value Unit</span><input id="meterValueUnit" type="text" value="Wh" />
+		<span>Metering Enabled</span><input type="checkbox" name="checkboxMeteringEnabled" id="checkboxMeteringEnabled" checked>
 
 		<div>
 			<span class="indicator" id="red">____</span>
@@ -76,7 +89,6 @@
 		var start_id = "";
 		var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 		var id = randonId();
-		var lastTranId;
 		var _websocket = null;
 
 		var connector_locked = false;
@@ -552,12 +564,9 @@
 		function Authorize() {
 
 		    sessionStorage.setItem('LastAction', "Authorize");
-		    var Auth = JSON.stringify([2, id, "Authorize", {
-		        "idToken": {
-		            "idToken": $('#idToken').val(),
-		            "type": "ISO15693"
-		        }
-		    }]);
+				var json = {};
+				json.idToken = getIdTokenObject();
+		    var Auth = JSON.stringify([2, id, "Authorize", json]);
 		    _websocket.send(Auth);
 
 		}
@@ -586,7 +595,7 @@
 				if(startValue != null) {
 					// if stopValue present, the startDate should be in the past (-1min)
 					var startDate = stopValue==null ? new Date() : new Date(new Date().valueOf() - 60000);
-					
+
 					meterValueSampleObject.push({
 			        "timestamp": formatDate(startDate),
 			        "sampledValue": [{
@@ -615,12 +624,25 @@
 				return meterValueSampleObject;
 		}
 
+		function setTransactionId(transactionId) {
+				$('#transactionId').val(transactionId);
+		}
+
+		function getTransactionId() {
+		    return $('#transactionId').val();
+		}
+
 		function getIdToken() {
 		    return $('#idToken').val();
 		}
 
 		function getAuthEnabled() {
 			return $('#checkboxAuthEnabled').is(':checked');
+
+		}
+
+		function isMeteringEnabled() {
+			return $('#checkboxMeteringEnabled').is(':checked');
 
 		}
 
@@ -647,10 +669,10 @@
 		    return idTokenObject;
 		}
 
-		function getTransactionDataObject(transactionId, chargingState) {
+		function getTransactionDataObject(chargingState) {
 		    var transactionDataObject;
         transactionDataObject = {
-					"id": transactionId
+					"id": getTransactionId()
         };
 
 				if(chargingState) {
@@ -683,20 +705,25 @@
 		    $('#green').show();
 		    connector_locked = true;
 		    logMsg("Connector status changed to: " + connector_locked);
-		    lastTranId = guid();
+		    setTransactionId(guid());
 		    var json = {
 		        "eventType": "Started",
 		        "timestamp": formatDate(new Date()),
 		        "triggerReason": triggerReason,
 		        "seqNo": 0
 		    };
-				json.transactionData = getTransactionDataObject(lastTranId, chargingState);
-		    json.evse = getEvseObject();
-		    json.meterValue = getMeterValueSampleObject(Number.parseInt($('#meterStart').val()));
+				json.transactionData = getTransactionDataObject(chargingState);
 
 		    if (triggerReason == "Authorized" || triggerReason == "StopAuthorized") {
 		        json.idToken = getIdTokenObject();
 		    }
+
+				if(triggerReason != "Authorized") {
+						json.evse = getEvseObject();
+						if(isMeteringEnabled()){
+								json.meterValue = getMeterValueSampleObject(Number.parseInt($('#meterStart').val()));
+						}
+				}
 
 		    var strtT = JSON.stringify([2, id, "TransactionEvent", json]);
 		    _websocket.send(strtT);
@@ -711,11 +738,19 @@
 		        "seqNo": 0
 		    };
 
-				json.transactionData = getTransactionDataObject(lastTranId, chargingState);
+				json.transactionData = getTransactionDataObject(chargingState);
 		    json.evse = getEvseObject();
 
 				if (triggerReason == "Authorized" || triggerReason == "StopAuthorized") {
 		        json.idToken = getIdTokenObject();
+		    }
+
+				if (isMeteringEnabled() && triggerReason == "MeterValuePeriodic") {
+		        json.meterValue = getMeterValueSampleObject(Number.parseInt($('#meterUpdate').val()));
+		    }
+
+				if (isMeteringEnabled() && triggerReason == "CablePluggedIn") {
+		        json.meterValue = getMeterValueSampleObject(Number.parseInt($('#meterStart').val()));
 		    }
 
 		    var updTrns = JSON.stringify([2, id, "TransactionEvent", json]);
@@ -724,7 +759,10 @@
 
 		function stopTransaction(transaction_id = false, triggerReason = "EVCommunicationLost") {
 		    sessionStorage.setItem('LastAction', "stopTransaction");
-		    transaction_id == false ? lastTranId = lastTranId : lastTranId = transaction_id;
+				if(transaction_id != false) {
+					  //Used for RemoteStopTransaction
+						setTransactionId(transaction_id);
+				}
 		    $('.indicator').hide();
 		    connector_locked = false;
 		    logMsg("Connector status changed to: " + connector_locked);
@@ -736,10 +774,12 @@
 		        "seqNo": 0
 		    };
 
-				json.transactionData = getTransactionDataObject(lastTranId);
+				json.transactionData = getTransactionDataObject();
 				json.transactionData.stoppedReason = "EVDisconnected";
 		    json.evse = getEvseObject();
-		    json.meterValue = getMeterValueSampleObject(Number.parseInt($('#meterStart').val()), Number.parseInt($('#meterStop').val()));
+				if(isMeteringEnabled()) {
+		    		json.meterValue = getMeterValueSampleObject(Number.parseInt($('#meterStart').val()), Number.parseInt($('#meterStop').val()));
+				}
 
 		    var stpT = JSON.stringify([2, id, "TransactionEvent", json]);
 		    _websocket.send(stpT);
@@ -895,11 +935,10 @@
 
 		$('#startAuthorized').click(function() {
 		    // This is OCPP 2.0.0, In OCPP 2.0.1 "Idle" would be the correct value
-		    startTransaction(triggerReason = "Authorized", chargeState = "EVDetected");
+		    startTransaction(triggerReason = "Authorized", chargeState = null);
 		});
 
 		$('#updateAuthorized').click(function() {
-		    state = $('#chargingState').val();
 		    updateTransaction(triggerReason = "Authorized", chargingState = null);
 		});
 
@@ -911,6 +950,14 @@
 		$('#updateChargingStateChanged').click(function() {
 		    state = $('#chargingState').val();
 		    updateTransaction(triggerReason = "ChargingStateChanged", chargingState = state);
+		});
+
+		$('#updateMeterValuePeriodic').click(function() {
+		    updateTransaction(triggerReason = "MeterValuePeriodic", chargingState = null);
+		});
+
+		$('#updateStopAuthorized').click(function() {
+				updateTransaction(triggerReason = "StopAuthorized", chargingState = null);
 		});
 
 		$('#stopEVCommunicationLost').click(function() {

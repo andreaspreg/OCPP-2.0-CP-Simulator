@@ -190,7 +190,8 @@
 		                            "status": "Accepted"
 		                        }]);
 		                        _websocket.send(reqStartTrans);
-		                        startTransaction();
+		                        // disable, because it's not correct for all possible charging scenarios
+														// startTransaction();
 		                        break;
 		                    case "RequestStopTransaction":
 		                        var reqStopTrans = JSON.stringify([3, receivedMessageId, {
@@ -199,7 +200,8 @@
 		                        _websocket.send(reqStopTrans);
 
 		                        var stop_id = (JSON.parse(msg.data)[3].transactionId);
-		                        stopTransaction(stop_id);
+														// disable, because it's not correct for all possible charging scenarios
+														// stopTransaction(stop_id);
 		                        break;
 		                    case "Reset":
 		                        var ResetS = JSON.stringify([3, receivedMessageId, {

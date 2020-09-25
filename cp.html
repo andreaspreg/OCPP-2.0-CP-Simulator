@@ -190,17 +190,20 @@
 		                            "status": "Accepted"
 		                        }]);
 		                        _websocket.send(reqStartTrans);
+														setIdToken(receivedMessagePayload.idToken.idToken);
 		                        // disable, because it's not correct for all possible charging scenarios
 														// startTransaction();
 		                        break;
 		                    case "RequestStopTransaction":
+												    var transactionIdRequestStop = receivedMessagePayload.transactionId;
+														var responseStatus = transactionIdRequestStop == getTransactionId() ? "Accepted" : "Rejected";
 		                        var reqStopTrans = JSON.stringify([3, receivedMessageId, {
-		                            "status": "Accepted"
+		                            "status": responseStatus
 		                        }]);
 		                        _websocket.send(reqStopTrans);
 
-		                        var stop_id = (JSON.parse(msg.data)[3].transactionId);
 														// disable, because it's not correct for all possible charging scenarios
+														// var stop_id = (JSON.parse(msg.data)[3].transactionId);
 														// stopTransaction(stop_id);
 		                        break;
 		                    case "Reset":
@@ -632,6 +635,10 @@
 
 		function getTransactionId() {
 		    return $('#transactionId').val();
+		}
+
+		function setIdToken(idToken) {
+				$('#idToken').val(idToken);
 		}
 
 		function getIdToken() {

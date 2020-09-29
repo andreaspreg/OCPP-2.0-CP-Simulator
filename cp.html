@@ -727,8 +727,8 @@
 		        json.idToken = getIdTokenObject();
 		    }
 
+				json.evse = getEvseObject();
 				if(triggerReason != "Authorized") {
-						json.evse = getEvseObject();
 						if(isMeteringEnabled()){
 								json.meterValue = getMeterValueSampleObject(Number.parseInt($('#meterStart').val()));
 						}
